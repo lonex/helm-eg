@@ -1,0 +1,117 @@
+---
+# Source: ingchart/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mychart
+  labels:
+
+    helm.sh/chart: ingchart-0.1.0
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: ingchart/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mychart
+  labels:
+    helm.sh/chart: ingchart-0.1.0
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: RELEASE-NAME
+---
+# Source: ingchart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mychart
+  labels:
+    helm.sh/chart: ingchart-0.1.0
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: myapp
+      app.kubernetes.io/instance: RELEASE-NAME
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: myapp
+        app.kubernetes.io/instance: RELEASE-NAME
+    spec:
+      serviceAccountName: mychart
+      securityContext:
+        {}
+      containers:
+        - name: ingchart
+          securityContext:
+            {}
+          image: "nginx:1.1.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            limits:
+              cpu: 400m
+              memory: 496Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: ingchart/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: mychart
+  labels:
+    helm.sh/chart: ingchart-0.1.0
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    kubernetes.io/ingress.class: nginx-internal
+    kubernetes.io/tls-acme: "true"
+    prometheus.io/path: /metrics
+    prometheus.io/scrape: "true"
+spec:
+  rules:
+    - host: "mychart.branch.io"
+      http:
+        paths:
+          - path: /path_bar
+            backend:
+              serviceName: mychart
+              servicePort: 80
+          - path: /path_foo
+            backend:
+              serviceName: mychart
+              servicePort: 80
